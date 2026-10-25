@@ -133,8 +133,7 @@
 (defn variable-type->str [value]
   (if (vector? value)
     (if (#{:keyword :vector :string} (first value))
-      (let [_         (prn :-> value)
-            [variation value] value
+      (let [[variation value] value
             transform {:keyword *kw->gql-name*
                        :vector  (fn [x] (str "[" (variable-type->str (first x)) "]"))
                        :string  identity}]
