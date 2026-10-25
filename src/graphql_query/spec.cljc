@@ -1,14 +1,14 @@
 (ns graphql-query.spec
-  (:require #?(:clj [clojure.spec.alpha :as s]
+  (:require #?(:clj  [clojure.spec.alpha :as s]
                :cljs [cljs.spec.alpha :as s])
-                    [graphql-query.exception :as ex]
-                    [clojure.set :as c-set]
-                    [clojure.string :as c-string]))
+            [graphql-query.exception :as ex]
+            [clojure.set :as c-set]
+            [clojure.string :as c-string]))
 
 (defn namespaced-fragment-kw?
   [x]
   (and (keyword? x)
-       (= "fragment" (namespace x))))
+    (= "fragment" (namespace x))))
 
 (defn- fragment-keyword?
   "Checks if keyword has :fragment namespace"
@@ -48,11 +48,11 @@
                       :graphql-query/ex-data used-fragments})
         x))
 
-    (let [fragment-names (->> x
-                           :fragments
-                           (map (comp name :fragment/name))
-                           set)
-          used-fragments (resolve-used-fragments x)
+    (let [fragment-names      (->> x
+                                :fragments
+                                (map (comp name :fragment/name))
+                                set)
+          used-fragments      (resolve-used-fragments x)
           undefined-fragments (c-set/difference used-fragments fragment-names)]
       (if (empty? undefined-fragments)
         x
@@ -64,7 +64,7 @@
     (->> args
       vals
       (filter #(and (keyword? %)
-                    (c-string/index-of (name %) "$")))
+                 (c-string/index-of (name %) "$")))
       (map #(c-string/replace (name %) "$" "")))))
 
 (defn- resolve-used-variables
@@ -88,11 +88,11 @@
                       :graphql-query/ex-data used-variables})
         x))
 
-    (let [variables-names (->> x
-                            :variables
-                            (map #(c-string/replace (name (:variable/name %)) "$" ""))
-                            set)
-          used-variables (resolve-used-variables x)
+    (let [variables-names     (->> x
+                                :variables
+                                (map #(c-string/replace (name (:variable/name %)) "$" ""))
+                                set)
+          used-variables      (resolve-used-variables x)
           undefined-variables (c-set/difference used-variables variables-names)]
       (if (empty? undefined-variables)
         x
@@ -105,33 +105,33 @@
 (s/def :graphql-query/fields
   (s/conformer
     #(or-conformer %
-                   (s/or
-                     :fields
-                     (s/coll-of (s/or :graphql-query/meta-field meta-fields
-                                      :fragments (s/coll-of namespaced-fragment-kw?)
-                                      :graphql-query/nested-field-with-fragments (s/cat :graphql-query/nested-field-root keyword?
-                                                                                        :fragments (s/coll-of namespaced-fragment-kw?))
-                                      :graphql-query/field keyword?
+       (s/or
+         :fields
+         (s/coll-of (s/or :graphql-query/meta-field meta-fields
+                      :fragments (s/coll-of namespaced-fragment-kw?)
+                      :graphql-query/nested-field-with-fragments (s/cat :graphql-query/nested-field-root keyword?
+                                                                   :fragments (s/coll-of namespaced-fragment-kw?))
+                      :graphql-query/field keyword?
 
-                                      :graphql-query/field-with-args (s/cat :graphql-query/field keyword?
-                                                                            :args :graphql-query/args)
+                      :graphql-query/field-with-args (s/cat :graphql-query/field keyword?
+                                                       :args :graphql-query/args)
 
-                                      :graphql-query/field-with-data (s/keys :req [:field/data]
-                                                                             :opt [:field/alias])
+                      :graphql-query/field-with-data (s/keys :req [:field/data]
+                                                       :opt [:field/alias])
 
-                                      :graphql-query/nested-field-arg-only (s/cat :graphql-query/nested-field-root keyword?
-                                                                                  :args :graphql-query/args)
-                                      :graphql-query/nested-field (s/cat :graphql-query/nested-field-root keyword?
-                                                                         :args (s/? :graphql-query/args)
-                                                                         :graphql-query/nested-field-children :graphql-query/fields)))
+                      :graphql-query/nested-field-arg-only (s/cat :graphql-query/nested-field-root keyword?
+                                                             :args :graphql-query/args)
+                      :graphql-query/nested-field (s/cat :graphql-query/nested-field-root keyword?
+                                                    :args (s/? :graphql-query/args)
+                                                    :graphql-query/nested-field-children :graphql-query/fields)))
 
-                     :fragment fragment-keyword?))))
+         :fragment fragment-keyword?))))
 
 (s/def :graphql-query/args (s/keys :opt []))
 (s/def :query/data (s/cat :query :graphql-query/query-name :args (s/? :graphql-query/args) :fields (s/? :graphql-query/fields)))
 (s/def :graphql-query/query (s/or :query/data :query/data
-                                  :graphql-query/query-with-data (s/keys :req [:query/data]
-                                                                         :opt [:query/alias])))
+                              :graphql-query/query-with-data (s/keys :req [:query/data]
+                                                               :opt [:query/alias])))
 (s/def :query/alias keyword?)
 
 (s/def :field/data :graphql-query/fields)
@@ -139,7 +139,7 @@
 
 (s/def :fragment/name (fn [name]
                         (and (keyword? name)
-                             (= (namespace name) "fragment"))))
+                          (= (namespace name) "fragment"))))
 
 (s/def :fragment/type keyword?)
 (s/def :fragment/fields :graphql-query/fields)
@@ -152,11 +152,17 @@
 
 (s/def :variable/name (fn [x]
                         (and (keyword? x)
-                             (= (str (first (name x))) "$"))))
+                          (= (str (first (name x))) "$"))))
 
-(s/def :variable/type keyword?)
+
+(s/def :variable/type (s/or
+                        :keyword keyword?
+                        :vector (s/coll-of :variable/type :min-count 1 :max-count 1)
+                        :string string?))
+
 (s/def :query/variable (s/keys :req [:variable/name :variable/type]
-                               :opt [:variable/default]))
+                         :opt [:variable/default]))
+
 (s/def :graphql-query/variables (s/coll-of :query/variable :min-count 1))
 
 (s/def :graphql-query/queries (s/coll-of :graphql-query/query :min-count 1))
@@ -166,15 +172,15 @@
 (s/def :graphql-query/valid-variables (s/conformer valid-variables))
 
 (s/def :graphql-query/query-def (s/and (s/keys :req-un [:graphql-query/queries]
-                                               :opt-un [:graphql-query/fragments
-                                                        :graphql-query/operation
-                                                        :graphql-query/variables])
-                                       :graphql-query/valid-fragments
-                                       :graphql-query/valid-variables))
+                                         :opt-un [:graphql-query/fragments
+                                                  :graphql-query/operation
+                                                  :graphql-query/variables])
+                                  :graphql-query/valid-fragments
+                                  :graphql-query/valid-variables))
 
 (defn query->spec [query]
   (let [conformed (s/conform :graphql-query/query-def query)]
     (if (= ::s/invalid conformed)
-      (ex/throw-ex {:graphql-query/ex-type :graphql-query/spec-validation
+      (ex/throw-ex {:graphql-query/ex-type    :graphql-query/spec-validation
                     :graphql-query/ex-explain (s/explain :graphql-query/query-def query)})
       [:graphql-query/query-def conformed])))

@@ -112,33 +112,33 @@
     (is (= [:graphql-query/query-def {:operation {:operation/type :query
                                                   :operation/name "employeeQuery"}
                                       :variables [{:variable/name :$id
-                                                   :variable/type :Int}
+                                                   :variable/type [:keyword :Int]}
                                                   {:variable/name :$name
-                                                   :variable/type :String}]
-                                      :fragments [{:fragment/name :fragment/comparisonFields
-                                                   :fragment/type :Worker
+                                                   :variable/type [:keyword :String]}]
+                                      :fragments [{:fragment/name   :fragment/comparisonFields
+                                                   :fragment/type   :Worker
                                                    :fragment/fields [[:graphql-query/field :name] [:graphql-query/field :address]
-                                                                     [:graphql-query/nested-field {:graphql-query/nested-field-root :friends
+                                                                     [:graphql-query/nested-field {:graphql-query/nested-field-root     :friends
                                                                                                    :graphql-query/nested-field-children [[:graphql-query/field :name]
                                                                                                                                          [:graphql-query/field :email]]}]]}]
-                                      :queries [[:graphql-query/query-with-data {:query/data {:query :employee
-                                                                                              :args {:id :$id
-                                                                                                     :active true
-                                                                                                     :name :$name}
-                                                                                              :fields :fragment/comparisonFields}
-                                                                                 :query/alias :workhorse}]
-                                                [:graphql-query/query-with-data {:query/data {:query :employee
-                                                                                              :args {:id :$id
-                                                                                                     :active false}
-                                                                                              :fields :fragment/comparisonFields}
-                                                                                 :query/alias :boss}]]}]
-           (qs/query->spec {:operation {:operation/type :query
+                                      :queries   [[:graphql-query/query-with-data {:query/data  {:query  :employee
+                                                                                                 :args   {:id     :$id
+                                                                                                          :active true
+                                                                                                          :name   :$name}
+                                                                                                 :fields :fragment/comparisonFields}
+                                                                                   :query/alias :workhorse}]
+                                                  [:graphql-query/query-with-data {:query/data  {:query  :employee
+                                                                                                 :args   {:id     :$id
+                                                                                                          :active false}
+                                                                                                 :fields :fragment/comparisonFields}
+                                                                                   :query/alias :boss}]]}]
+          (qs/query->spec {:operation  {:operation/type :query
                                         :operation/name "employeeQuery"}
-                            :variables [{:variable/name :$id
+                           :variables  [{:variable/name :$id
                                          :variable/type :Int}
                                         {:variable/name :$name
                                          :variable/type :String}]
-                            :queries [{:query/data [:employee {:id :$id
+                           :queries [{:query/data [:employee {:id :$id
                                                                :active true
                                                                :name :$name}
                                                     :fragment/comparisonFields]

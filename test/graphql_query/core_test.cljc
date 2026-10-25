@@ -55,7 +55,11 @@
 (deftest variables->str-test
   (is (= "$id:Int" (q/variables->str [{:variable/name :$id
                                        :variable/type :Int}])))
-  (is (= "$id:Int=2" (q/variables->str [{:variable/name :$id
+  (is (= "$id:[Int]" (q/variables->str [{:variable/name :$id
+                                       :variable/type   "[Int]"}])))
+  (is (= "$id:[Int]" (q/variables->str [{:variable/name :$id
+                                       :variable/type   [:Int]}])))
+  (is (= "$id:Int=2" (q/variables->str [{:variable/name    :$id
                                          :variable/type :Int
                                          :variable/default 2}])))
   (is (= "$id:Int,$name:String" (q/variables->str [{:variable/name :$id

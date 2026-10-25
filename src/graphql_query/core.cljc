@@ -1,8 +1,10 @@
 (ns graphql-query.core
   (:require [graphql-query.spec :as spec]
             [clojure.string :as str])
-  #?(:clj (:import (clojure.lang IPersistentMap Keyword IPersistentCollection))
-     :cljs (:import goog.date.Date goog.date.DateTime goog.date.UtcDateTime)))
+  #?(:clj  (:import (clojure.lang IPersistentMap Keyword IPersistentCollection))
+     :cljs (:import goog.date.Date
+                    goog.date.DateTime
+                    goog.date.UtcDateTime)))
 
 (def ^:dynamic *kw->gql-name* name)
 
@@ -105,27 +107,40 @@
              :graphql-query/meta-field (meta-field->str value)
              :graphql-query/field (*kw->gql-name* value)
              :graphql-query/field-with-args (str (*kw->gql-name* (:graphql-query/field value))
-                                                 (when (:args value)
-                                                   (str "(" (arguments->str (:args value)) ")")))
+                                              (when (:args value)
+                                                (str "(" (arguments->str (:args value)) ")")))
              :graphql-query/field-with-data (str (when-let [alias (*kw->gql-name* (:field/alias value))]
                                                    (str alias ":"))
-                                                 (fields->str (:field/data value)))
+                                              (fields->str (:field/data value)))
              :graphql-query/nested-field (str (*kw->gql-name* (:graphql-query/nested-field-root value))
-                                              (when (:args value)
-                                                (str "(" (arguments->str (:args value)) ")"))
-                                              "{"
-                                              (fields->str (:graphql-query/nested-field-children value))
-                                              "}")
+                                           (when (:args value)
+                                             (str "(" (arguments->str (:args value)) ")"))
+                                           "{"
+                                           (fields->str (:graphql-query/nested-field-children value))
+                                           "}")
              :graphql-query/nested-field-arg-only (str (*kw->gql-name* (:graphql-query/nested-field-root value))
-                                                       (str "(" (arguments->str (:args value)) ")"))
+                                                    (str "(" (arguments->str (:args value)) ")"))
              :fragments (str/join " " (map #(str "..." (*kw->gql-name* (name %))) value))
              :graphql-query/nested-field-with-fragments (str (*kw->gql-name* (:graphql-query/nested-field-root value))
-                                                             "{"
-                                                             (str/join " " (map #(str "..." (*kw->gql-name* (name %)))
-                                                                                (:fragments value)))
-                                                             "}")))
+                                                          "{"
+                                                          (str/join " " (map #(str "..." (*kw->gql-name* (name %)))
+                                                                          (:fragments value)))
+                                                          "}")))
       (interpose ",")
       (apply str))))
+
+
+(defn variable-type->str [value]
+  (if (vector? value)
+    (if (#{:keyword :vector :string} (first value))
+      (let [_         (prn :-> value)
+            [variation value] value
+            transform {:keyword *kw->gql-name*
+                       :vector  (fn [x] (str "[" (variable-type->str (first x)) "]"))
+                       :string  identity}]
+        ((get transform variation) value))
+      (str "[" (*kw->gql-name* (first value)) "]"))
+    (*kw->gql-name* value)))
 
 (defn variables->str
   "Given a vector of variable maps, formats them and concatenates to string.
@@ -133,7 +148,7 @@
   E.g. (variables->str [{:variable/name \"id\" :variable/type :Int}]) => \"$id: Int\""
   [variables]
   (->> (for [{var-name :variable/name var-type :variable/type var-default :variable/default} variables]
-         (str (name var-name) ":" (*kw->gql-name* var-type) (when var-default (str "=" (arg->str var-default)))))
+         (str (name var-name) ":" (variable-type->str var-type) (when var-default (str "=" (arg->str var-default)))))
     (interpose ",")
     (apply str)))
 
@@ -142,92 +157,92 @@
   [fragment]
   (let [fields (str "{" (fields->str (:fragment/fields fragment)) "}")]
     (str "fragment "
-         (*kw->gql-name* (name (:fragment/name fragment)))
-         " on "
-         (*kw->gql-name* (:fragment/type fragment))
-         fields)))
+      (*kw->gql-name* (name (:fragment/name fragment)))
+      " on "
+      (*kw->gql-name* (:fragment/type fragment))
+      fields)))
 
 (defn include-fields?
   "Include fields if fields is not empty or is a keyword.
    fields could be nil or empty for operations that return a scalar."
   [fields]
   (or (keyword? fields)
-      (not (empty? fields))))
+    (not (empty? fields))))
 
 (defmulti ->query-str
-          (fn [query]
-            (cond (vector? query) (first query)
-                  (:graphql-query/query query) :graphql-query/query
-                  (:graphql-query/query-with-data query) :graphql-query/query-with-data
-                  :else :default)))
+  (fn [query]
+    (cond (vector? query) (first query)
+      (:graphql-query/query query) :graphql-query/query
+      (:graphql-query/query-with-data query) :graphql-query/query-with-data
+      :else :default)))
 
 (defmethod ->query-str :graphql-query/query-vector
   [[_ query]]
   "Given a spec conformed query vector, creates query string with query, arguments and fields."
   (str "{"
-       (->> (map ->query-str query)
-         (interpose ",")
-         (apply str))
-       "}"))
+    (->> (map ->query-str query)
+      (interpose ",")
+      (apply str))
+    "}"))
 
 (defmethod ->query-str :graphql-query/query-def
   [[_ query]]
   "Given a spec conformed root query map, creates a complete query string."
-  (let [operation (:operation query)
+  (let [operation           (:operation query)
         operation-with-name (when operation (str (*kw->gql-name* (:operation/type operation)) " " (*kw->gql-name* (:operation/name operation))))
-        variables (:variables query)
-        variables-str (when variables (str "(" (variables->str variables) ")"))
-        fragments (:fragments query)
-        fragments-str (when fragments (str " " (->> (map fragment->str fragments)
-                                                 (interpose ",")
-                                                 (apply str))))]
+        variables           (:variables query)
+        variables-str       (when variables (str "(" (variables->str variables) ")"))
+        fragments           (:fragments query)
+        fragments-str       (when fragments (str " " (->> (map fragment->str fragments)
+                                                       (interpose ",")
+                                                       (apply str))))]
     (str operation-with-name
-         variables-str
-         "{"
-         (->> (map ->query-str (:queries query))
-           (interpose ",")
-           (apply str))
-         "}"
-         fragments-str)))
+      variables-str
+      "{"
+      (->> (map ->query-str (:queries query))
+        (interpose ",")
+        (apply str))
+      "}"
+      fragments-str)))
 
 (defmethod ->query-str :graphql-query/query
   [query]
   "Processes a single query."
   (let [query-def (:graphql-query/query query)
-        alias (when (:query/alias query) (str (*kw->gql-name* (:query/alias query)) ":"))
+        alias     (when (:query/alias query) (str (*kw->gql-name* (:query/alias query)) ":"))
         query-str (*kw->gql-name* (:query query-def))
-        args (when (:args query-def) (str "(" (arguments->str (:args query-def)) ")"))
-        fields (str "{" (fields->str (:fields query-def)) "}")]
+        args      (when (:args query-def) (str "(" (arguments->str (:args query-def)) ")"))
+        fields    (str "{" (fields->str (:fields query-def)) "}")]
     (str alias query-str args fields)))
 
 (defmethod ->query-str :queries
   [[_ query]]
   (str "{"
-       (->> (map ->query-str query)
-         (interpose ",")
-         (apply str))
-       "}"))
+    (->> (map ->query-str query)
+      (interpose ",")
+      (apply str))
+    "}"))
 
 (defmethod ->query-str :graphql-query/query-with-data
   [[_ query]]
   (let [query-str (->query-str (:query/data query))
-        alias (when (:query/alias query) (str (*kw->gql-name* (:query/alias query)) ":"))]
+        alias     (when (:query/alias query) (str (*kw->gql-name* (:query/alias query)) ":"))]
     (str alias query-str)))
 
 (defmethod ->query-str :query/data
   [[_ query]]
   "Processes simple query."
   (let [query-str (*kw->gql-name* (:query query))
-        args (when (:args query) (str "(" (arguments->str (:args query)) ")"))
-        fields (when (include-fields? (:fields query)) (str "{" (fields->str (:fields query)) "}"))]
+        args      (when (:args query) (str "(" (arguments->str (:args query)) ")"))
+        fields    (when (include-fields? (:fields query)) (str "{" (fields->str (:fields query)) "}"))]
     (str query-str args fields)))
 
 (defmethod ->query-str :default
   [query]
   "Processes a query map (with query name, args and fields)"
   (let [query-str (*kw->gql-name* (:query query))
-        args (when (:args query) (str "(" (arguments->str (:args query)) ")"))
-        fields (when (include-fields? (:fields query)) (str "{" (fields->str (:fields query)) "}"))]
+        args      (when (:args query) (str "(" (arguments->str (:args query)) ")"))
+        fields    (when (include-fields? (:fields query)) (str "{" (fields->str (:fields query)) "}"))]
     (str query-str args fields)))
 
 (defn graphql-query
@@ -235,4 +250,4 @@
   [data & [{:keys [:kw->gql-name]}]]
   (binding [*kw->gql-name* (or kw->gql-name *kw->gql-name*)]
     (-> (spec/query->spec data)
-        ->query-str)))
+      ->query-str)))
